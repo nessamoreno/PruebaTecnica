@@ -23,13 +23,12 @@ class CompanyUpdateRequest extends FormRequest
     {
         return [
             'document_type'   => 'required|in:NIT,CC',
-            'document_number' => 'required|unique:companies,document_number,' . $this->route('company')->id . '|max:255', // Excluir el registro actual
-            'first_name'      => 'required|string|max:255',
+            'document_number' => 'required|unique:companies,document_number,' . $this->route('company') . '|max:255',            'first_name'      => 'required|string|max:255',
             'last_name'       => 'required|string|max:255',
             'address'         => 'required|string|max:255',
             'phone'           => 'nullable|string|max:20',
             'mobile'          => 'nullable|string|max:20',
-            'email'           => 'required|email|unique:companies,email,' . $this->route('company')->id, // Excluir el registro actual
+            'email'           => 'required|email|unique:companies,email,' . $this->route('company'),
             'user'            => 'required|string|max:255',
         ];
     }

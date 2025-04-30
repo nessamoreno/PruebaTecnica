@@ -9,11 +9,26 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use App\Http\Requests\CompanyStoreRequest;
 use App\Http\Requests\CompanyUpdateRequest;
+use App\Repositories\Interfaces\CompanyRepositoryInterface;
 
 class CompanyController extends Controller
 {
-    
+    protected CompanyRepositoryInterface $companyRepository;
+
+    public function __construct(CompanyRepositoryInterface $companyRepository)
+    {
+        $this->companyRepository = $companyRepository;
+    }
+
     public function index(Request $request)
+    {
+        $filters = $request->only(['document_type', 'document_number', 'first_name', 'last_name', 'phone']);
+        $companies = $this->companyRepository->getAll($filters);
+
+        return view('companies.index', compact('companies'))->with('i', (request()->input('page', 1) - 1) * 5);
+    }
+    
+    /*public function index(Request $request)
     {
         $companies = Company::query()
             ->when($request->document_type, fn($q) => $q->where('document_type', $request->document_type))
@@ -25,7 +40,7 @@ class CompanyController extends Controller
             ->paginate(5);
 
             return view('companies.index', compact('companies'))->with('i', (request()->input('page', 1) - 1) * 5);
-    }
+    }*/
 
 
     public function create()
@@ -47,10 +62,49 @@ class CompanyController extends Controller
 
         Company::create($data);
         return redirect()->route('companies.index')->with('success', 'Company created successfully.');
-        
-        //Company::create($request->validated());
-        //return redirect()->route('companies.index')
-                         //->with('success', 'Empresa creada exitosamente.');
+    }
+
+    public function show(Company $company)
+    {
+        abort_unless($company, 404);
+
+        return view('companies.show', compact('company'));
+    }
+
+    public function edit(Company $company): View
+    {
+        abort_unless($company, 404);
+
+        return view('companies.edit', compact('company'));
+    }
+
+    public function update(CompanyUpdateRequest $request, int $id): RedirectResponse
+    {
+        $company = $this->companyRepository->find($id);
+        abort_unless($company, 404);
+
+        $data = $request->validated();
+
+        if ($data['document_type'] === 'NIT') {
+            $words = explode(' ', $data['first_name']);
+            $data['first_name'] = implode(' ', array_slice($words, 0, count($words) - 2));
+            $data['last_name'] = implode(' ', array_slice($words, -2));
+        }
+
+        $data['full_name'] = trim($data['first_name'] . ' ' . $data['last_name']);
+
+        $this->companyRepository->update($company, $data);
+
+        return redirect()->route('companies.index')->with('success', 'Empresa actualizada exitosamente.');
+    }
+
+    public function destroy(int $id): RedirectResponse
+    {
+        abort_unless($company, 404);
+
+        $this->companyRepository->delete($company);
+
+        return redirect()->route('companies.index')->with('success', 'Empresa eliminada exitosamente.');
     }
 
     private function splitName($fullName): array
@@ -66,42 +120,5 @@ class CompanyController extends Controller
         $lastName = implode(' ', array_slice($words, $mid));
 
         return [$firstName, $lastName];
-    }
-
-    public function show(Company $company)
-    {
-        return view('companies.show', compact('company'));
-    }
-
-    public function edit(Company $company): View
-    {
-        return view('companies.edit',compact('company'));
-    }
-
-    public function update(CompanyUpdateRequest $request, Company $company): RedirectResponse
-    {
-        $data = $request->validated();
-
-        if ($data['document_type'] === 'NIT') {
-            $words = explode(' ', $data['first_name']);
-            $data['first_name'] = implode(' ', array_slice($words, 0, count($words) - 2));
-            $data['last_name'] = implode(' ', array_slice($words, -2));
-        }
-
-        $data['full_name'] = trim($data['first_name'] . ' ' . $data['last_name']);
-
-        $company->update($data);
-        return redirect()->route('companies.index')->with('success', 'Empresa actualizada exitosamente.');
-        
-        //$company->update($request->validated());
-        //return redirect()->route('companies.index')->with('success','Empresa actualizada exitosamente');
-    }
-
-    public function destroy(Company $company): RedirectResponse
-    {
-        $company->delete();
-
-        return redirect()->route('companies.index')
-                        ->with('success','Empresa eliminada exitosamente');
     }
 }
